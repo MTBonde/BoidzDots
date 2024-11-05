@@ -23,7 +23,7 @@ namespace ECS.Authoring
         /// <summary>
         /// Inner baking class responsible for baking authoring data into ECS-compatible components.
         /// </summary>
-        private class BoidAuthoringBaker : Baker<BoidPrefabAuthoring>
+        private class BoidPrefabAuthoringBaker : Baker<BoidPrefabAuthoring>
         {
             // Overrides Bake method to add components to the boid entity.
             public override void Bake(BoidPrefabAuthoring prefabAuthoring)
@@ -34,14 +34,19 @@ namespace ECS.Authoring
                 // entity as one that will undergo regular updates, allocating resources accordingly.
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-                // Adds MoveSpeedComponent to the entity with the speed value from BoidAuthoring.
-                AddComponent(entity, new MoveSpeedComponent { Speed = prefabAuthoring.Speed });
-
-                // Adds DirectionComponent to the entity with the direction value from BoidAuthoring.
-                AddComponent(entity, new DirectionComponent { Direction = prefabAuthoring.Direction });
+                // Set random initial velocity instead of speed and direction
+                AddComponent(entity, new VelocityComponent { Velocity = prefabAuthoring.Direction * prefabAuthoring.Speed });
+                AddComponent(entity, new BoidBehaviourComponent {});
+                AddComponent(entity, new BoidTag {});
                 
-                // Adds BoidComponent to the entity.
-                AddComponent(entity, new BoidBehaviourComponent{});
+                // // Adds MoveSpeedComponent to the entity with the speed value from BoidAuthoring.
+                // AddComponent(entity, new MoveSpeedComponent { Speed = prefabAuthoring.Speed });
+                //
+                // // Adds DirectionComponent to the entity with the direction value from BoidAuthoring.
+                // AddComponent(entity, new DirectionComponent { Direction = prefabAuthoring.Direction });
+                //
+                // // Adds BoidComponent to the entity.
+                // AddComponent(entity, new BoidBehaviourComponent{});
             }
         }
     }
