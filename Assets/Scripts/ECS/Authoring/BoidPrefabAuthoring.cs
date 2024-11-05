@@ -12,7 +12,7 @@ namespace ECS.Authoring
     /// Authoring allows customization of properties such as speed and direction in the Unity Inspector.
     /// The BoidAuthoringBaker class then converts these properties into ECS-compatible component data.
     /// </summary>
-    public class BoidAuthoring : MonoBehaviour
+    public class BoidPrefabAuthoring : MonoBehaviour
     {
         // Speed of the boid, settable in the Unity Inspector.
         public float Speed;
@@ -23,10 +23,10 @@ namespace ECS.Authoring
         /// <summary>
         /// Inner baking class responsible for baking authoring data into ECS-compatible components.
         /// </summary>
-        private class BoidAuthoringBaker : Baker<BoidAuthoring>
+        private class BoidAuthoringBaker : Baker<BoidPrefabAuthoring>
         {
             // Overrides Bake method to add components to the boid entity.
-            public override void Bake(BoidAuthoring authoring)
+            public override void Bake(BoidPrefabAuthoring prefabAuthoring)
             {
                 // Retrieves the entity and configures it for dynamic transformation, enabling runtime movement.
                 // 'Dynamic' here allows the entity's position and rotation to be frequently updated, ideal for
@@ -35,10 +35,13 @@ namespace ECS.Authoring
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
                 // Adds MoveSpeedComponent to the entity with the speed value from BoidAuthoring.
-                AddComponent(entity, new MoveSpeedComponent { Speed = authoring.Speed });
+                AddComponent(entity, new MoveSpeedComponent { Speed = prefabAuthoring.Speed });
 
                 // Adds DirectionComponent to the entity with the direction value from BoidAuthoring.
-                AddComponent(entity, new DirectionComponent { Direction = authoring.Direction });
+                AddComponent(entity, new DirectionComponent { Direction = prefabAuthoring.Direction });
+                
+                // Adds BoidComponent to the entity.
+                AddComponent(entity, new BoidBehaviourComponent{});
             }
         }
     }

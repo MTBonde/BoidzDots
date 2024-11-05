@@ -10,8 +10,12 @@ namespace ECS.Authoring
     public class BoidSpawnerAuthoring : MonoBehaviour
     {
         // Set the number of boids to spawn in the Inspector.
-        public int MaxBoidCount = 1000;
-        
+        public int MaxBoidCount = 20000;
+
+        /// <summary>
+        /// Baker class that converts authoring component data into ECS components for boid spawning settings.
+        /// This class ensures that settings defined in BoidSpawnerAuthoring are baked into the ECS world.
+        /// </summary>
         private class BoidSettingsBaker : Baker<BoidSpawnerAuthoring>
         {
             public override void Bake(BoidSpawnerAuthoring authoring)
