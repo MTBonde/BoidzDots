@@ -1,4 +1,5 @@
 using ECS.Components;
+using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
 
@@ -27,6 +28,11 @@ namespace ECS.Systems
                 ComponentType.ReadWrite<DirectionComponent>()));
         }
 
+        /// <summary>
+        /// Create a move job and schedule it to run in parallel.
+        /// </summary>
+        /// <param name="state"></param>
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             // Create a new MoveJob, pass DeltaTime, and schedule it with dependency handling
@@ -45,6 +51,7 @@ namespace ECS.Systems
         /// The job adjusts the local transform of each entity based on its speed and direction components,
         /// taking into account the elapsed time between frames.
         /// </summary>
+        [BurstCompile]
         public partial struct MoveJob : IJobEntity
         {
             public float DeltaTime;

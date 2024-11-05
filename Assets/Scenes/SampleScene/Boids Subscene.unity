@@ -193,7 +193,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b0c1705e5f69f74bb57d07d95a008df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxBoidCount: 25000
+  MaxBoidCount: 20000
 --- !u!4 &1103449392
 Transform:
   m_ObjectHideFlags: 0
