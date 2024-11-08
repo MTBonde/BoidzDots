@@ -7,6 +7,7 @@ namespace ECS.Authoring
     /// <summary>
     /// Authoring class to define adjustable settings for boid behavior, such as weights and speeds.
     /// Allows runtime adjustments via the Unity Inspector.
+    /// Disaalowmultiple tag prevent multiple instances.
     /// </summary>
     [DisallowMultipleComponent]
     public class BoidSettingsAuthoring : MonoBehaviour

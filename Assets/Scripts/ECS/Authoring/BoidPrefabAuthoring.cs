@@ -9,7 +9,7 @@ namespace ECS.Authoring
 {
     /// <summary>
     /// Represents the authoring class for Boids in the Unity Inspector,
-    /// Authoring allows customization of properties such as speed and direction in the Unity Inspector.
+    /// Authoring allows me to set the properties such as speed and direction in the Unity Inspector.
     /// The BoidAuthoringBaker class then converts these properties into ECS-compatible component data.
     /// </summary>
     public class BoidPrefabAuthoring : MonoBehaviour

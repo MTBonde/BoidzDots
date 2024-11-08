@@ -41,10 +41,13 @@ namespace ECS.Systems
             EntitiesReferences entitiesReferences = SystemAPI.GetSingleton<EntitiesReferences>();
             Random random = new Random((uint)UnityEngine.Random.Range(1, int.MaxValue));
 
+            // Iterate through all enteties with boid spawner components, set read-only
             foreach ((RefRO<LocalTransform> localTransform, RefRO<BoidSpawner> boidSpawner) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<BoidSpawner>>())
             {
+                // EO; If current boid count exceeds max count
                 if (CurrentBoidCount >= boidSpawner.ValueRO.MaxBoidCount) return;
     
+                // Spawn boids up to the specified MaxBoidCount
                 int spawnAmount = boidSpawner.ValueRO.MaxBoidCount - CurrentBoidCount;
                 for (int i = 0; i < spawnAmount; i++)
                 {
@@ -63,6 +66,7 @@ namespace ECS.Systems
                 }
             }
 
+            // OLD CODE
             
             // // Iterate through all boid spawners
             // foreach ((RefRO<LocalTransform> localTransform, RefRO<BoidSpawner> boidSpawner) 

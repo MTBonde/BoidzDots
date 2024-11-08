@@ -14,7 +14,15 @@ namespace ECS.Systems
         public float3 Position;
         public float3 Velocity;
     }
-    
+
+    /// <summary>
+    /// A crude test implementation of a boid behavior system.
+    /// No optimizations have been made, this is just a simple test.
+    /// First retrieve the boid settings from the singleton, then query for all boids in the scene, with specefic components.
+    /// Allocate memory for nativearrays to store boid data and entities.
+    /// then create and schuule data collections and behavior jobs.
+    /// Last dispose of native arrays
+    /// </summary>
     [BurstCompile]
     public partial struct BoidBehaviorSystem : ISystem
     {
@@ -31,22 +39,21 @@ namespace ECS.Systems
                 .WithAll<BoidTag, LocalTransform, VelocityComponent>()
                 .Build();
 
-            // Get arrays of positions and velocities
+            // Get boid count
             int boidCount = boidQuery.CalculateEntityCount();
 
             NativeArray<BoidData> boidDataArray = new NativeArray<BoidData>(boidCount, Allocator.TempJob);
             NativeArray<Entity> entities = boidQuery.ToEntityArray(Allocator.TempJob);
 
-            // Collect data
+            // Creat and schedule data collection job
             var collectJob = new CollectBoidDataJob
             {
                 BoidDataArray = boidDataArray
             };
             state.Dependency = collectJob.ScheduleParallel(boidQuery, state.Dependency);
-
             state.Dependency.Complete();
 
-            // Create the boid behavior job
+            // Create and schedule boid behavior job
             var boidBehaviorJob = new BoidBehaviorJob
             {
                 DeltaTime = deltaTime,
@@ -56,16 +63,19 @@ namespace ECS.Systems
                 LocalTransformLookup = state.GetComponentLookup<LocalTransform>(false),
                 VelocityLookup = state.GetComponentLookup<VelocityComponent>(false),
             };
-
-            // Schedule the job
             state.Dependency = boidBehaviorJob.Schedule(boidCount, 64, state.Dependency);
-
             state.Dependency.Complete();
 
+            // Dispose of native arrays
             boidDataArray.Dispose();
             entities.Dispose();
         }
 
+        /// <summary>
+        /// A job that collects boid data such as position and velocity for all boids in the scene.
+        /// This job processes entities with the LocalTransform and VelocityComponent components,
+        /// storing their data into a NativeArray of BoidData.
+        /// </summary>
         [BurstCompile]
         public partial struct CollectBoidDataJob : IJobEntity
         {
@@ -82,6 +92,11 @@ namespace ECS.Systems
             }
         }
 
+        /// <summary>
+        /// A job for handling individual boid behavior updates in parallel.
+        /// It calculates the movement for each boid based on its velocity and the provided settings.
+        /// The job works in parallel for each boid in the BoidDataArray.
+        /// </summary>
         [BurstCompile]
         public struct BoidBehaviorJob : IJobParallelFor
         {
@@ -93,6 +108,7 @@ namespace ECS.Systems
 
             [NativeDisableParallelForRestriction]
             public ComponentLookup<LocalTransform> LocalTransformLookup;
+            
             [NativeDisableParallelForRestriction]
             public ComponentLookup<VelocityComponent> VelocityLookup;
 
@@ -107,7 +123,7 @@ namespace ECS.Systems
                 float3 separation = float3.zero;
                 int neighborCount = 0;
 
-                // Loop over all boids to find neighbors (naive approach)
+                // Loop over all boids to find neighbors (naive approach, not optimized, needs spartial partitioning)
                 for (int i = 0; i < BoidDataArray.Length; i++)
                 {
                     if (i == index) continue;
@@ -126,6 +142,7 @@ namespace ECS.Systems
                     }
                 }
 
+                // Calculate average alignment, cohesion, and separation
                 if (neighborCount > 0)
                 {
                     alignment = alignment / neighborCount;
@@ -155,6 +172,7 @@ namespace ECS.Systems
                 currentPosition += currentVelocity * DeltaTime;
 
                 // Boundary checking
+                // (naive approach, not optimized, properly change to sphere boundary, or do an enum to change between shapes)
                 float3 minBounds = BoidSettings.BoundaryCenter - BoidSettings.BoundarySize;
                 float3 maxBounds = BoidSettings.BoundaryCenter + BoidSettings.BoundarySize;
 

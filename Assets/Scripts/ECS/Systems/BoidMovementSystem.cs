@@ -4,6 +4,9 @@ using Unity.Entities;
 
 namespace ECS.Systems
 {
+    /// <summary>
+    /// NOT YET IMPLEMENTED
+    /// </summary>
     partial struct BoidMovementSystem : ISystem
     {
         public void OnCreate(ref SystemState state)
