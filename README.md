@@ -8,7 +8,7 @@ This project explores the implementation of the Boids algorithm within Unity's D
 ## Setup and Testing
 1. **Boid Subscene**: Adjust the spawn amount in the BoidSpawner to control the number of boids.
 2. **Testing Environment**: Testing <u>MUST</u> be done with the Scene view open. Use the provided `ECSLayout` or your own custom layout for optimal workflow.
-   - **Download**: [ECSLayout.wlt](_Layout/ECSLayout.wlt)
+   - can be found in Assets/_Layout
 4. **Performance Goal**: Maintain performance above 60 FPS during testing.
 
 ## Branches of Interest
