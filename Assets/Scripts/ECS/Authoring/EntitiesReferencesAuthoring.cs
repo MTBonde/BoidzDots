@@ -27,6 +27,9 @@ namespace ECS.Authoring
         }
     }
     
+    /// <summary>
+    /// Data component for referencing a prefab GameObject in Unity's ECS system.
+    /// </summary>
     public struct EntitiesReferences : IComponentData
     {
         public Entity BoidPrefabEntity;
