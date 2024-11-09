@@ -163,7 +163,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edeb652c946e5e040b331c143cebb84b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  BoidPrefabGameObject: {fileID: 6427597685377552813, guid: 5be2090a162831841a8f957ffd16b960, type: 3}
+  BoidPrefabGameObject: {fileID: 9069040632846253451, guid: bfe2b6a3901d3f34aa7bde6536f8bda0, type: 3}
 --- !u!1 &894795637
 GameObject:
   m_ObjectHideFlags: 0
@@ -194,12 +194,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NeighborRadius: 50
-  MoveSpeed: 10
+  MoveSpeed: 25
   AlignmentWeight: 1
-  CohesionWeight: 1
-  SeparationWeight: 1
+  CohesionWeight: 5
+  SeparationWeight: 5
   BoundaryCenter: {x: 0, y: 0, z: 0}
-  BoundarySize: 50
+  BoundarySize: 10
   BoundaryWeight: 10
 --- !u!4 &894795639
 Transform:
