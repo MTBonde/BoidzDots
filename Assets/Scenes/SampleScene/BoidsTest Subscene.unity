@@ -196,10 +196,10 @@ MonoBehaviour:
   NeighborRadius: 50
   MoveSpeed: 25
   AlignmentWeight: 1
-  CohesionWeight: 5
-  SeparationWeight: 5
+  CohesionWeight: 10
+  SeparationWeight: 1
   BoundaryCenter: {x: 0, y: 0, z: 0}
-  BoundarySize: 10
+  BoundarySize: 1
   BoundaryWeight: 10
 --- !u!4 &894795639
 Transform:
