@@ -41,39 +41,66 @@ namespace ECS.Systems
             EntitiesReferences entitiesReferences = SystemAPI.GetSingleton<EntitiesReferences>();
             Random random = new Random((uint)UnityEngine.Random.Range(1, int.MaxValue));
 
-            // Iterate through all boid spawners
-            foreach ((RefRO<LocalTransform> localTransform, RefRO<BoidSpawner> boidSpawner) 
-                     in SystemAPI.Query<RefRO<LocalTransform>, RefRO<BoidSpawner>>())
+            // Iterate through all enteties with boid spawner components, set read-only
+            foreach ((RefRO<LocalTransform> localTransform, RefRO<BoidSpawner> boidSpawner) in SystemAPI.Query<RefRO<LocalTransform>, RefRO<BoidSpawner>>())
             {
-                // Check if current boid count exceeds max count
-                if (CurrentBoidCount >= boidSpawner.ValueRO.MaxBoidCount)
-                    return;
-
+                // EO; If current boid count exceeds max count
+                if (CurrentBoidCount >= boidSpawner.ValueRO.MaxBoidCount) return;
+    
                 // Spawn boids up to the specified MaxBoidCount
                 int spawnAmount = boidSpawner.ValueRO.MaxBoidCount - CurrentBoidCount;
-
-                // Spawn boids with random speed, direction, and position
                 for (int i = 0; i < spawnAmount; i++)
                 {
-                    // Instantiate a boid entity
                     Entity boidEntity = state.EntityManager.Instantiate(entitiesReferences.BoidPrefabEntity);
 
-                    // Set random speed, direction, and position within a spawn range
-                    float randomSpeed = random.NextFloat(1f, 3f);
-                    float3 randomDirection = math.normalize(random.NextFloat3Direction());
-                    float3 randomOffset = random.NextFloat3(-10f, 10f); // Offset within a 10-unit range
-                    float speed = state.EntityManager.GetComponentData<MoveSpeedComponent>(boidEntity).Speed;
-                    state.EntityManager.SetComponentData(boidEntity, new MoveSpeedComponent { Speed = randomSpeed + speed });
-                    state.EntityManager.SetComponentData(boidEntity, new DirectionComponent { Direction = randomDirection });
-                    
+                    // Set random velocity for boid
+                    float3 randomVelocity = random.NextFloat3Direction() * random.NextFloat(1f, 3f);
+                    state.EntityManager.SetComponentData(boidEntity, new VelocityComponent { Velocity = randomVelocity });
+
                     // Set boid position relative to the spawner's position
+                    float3 randomOffset = random.NextFloat3(-10f, 10f);
                     float3 spawnPosition = localTransform.ValueRO.Position + randomOffset;
                     state.EntityManager.SetComponentData(boidEntity, LocalTransform.FromPosition(spawnPosition));
 
-                    // Increment the boid count
                     CurrentBoidCount++;
                 }
             }
+
+            // OLD CODE
+            
+            // // Iterate through all boid spawners
+            // foreach ((RefRO<LocalTransform> localTransform, RefRO<BoidSpawner> boidSpawner) 
+            //          in SystemAPI.Query<RefRO<LocalTransform>, RefRO<BoidSpawner>>())
+            // {
+            //     // Check if current boid count exceeds max count
+            //     if (CurrentBoidCount >= boidSpawner.ValueRO.MaxBoidCount)
+            //         return;
+            //
+            //     // Spawn boids up to the specified MaxBoidCount
+            //     int spawnAmount = boidSpawner.ValueRO.MaxBoidCount - CurrentBoidCount;
+            //
+            //     // Spawn boids with random speed, direction, and position
+            //     for (int i = 0; i < spawnAmount; i++)
+            //     {
+            //         // Instantiate a boid entity
+            //         Entity boidEntity = state.EntityManager.Instantiate(entitiesReferences.BoidPrefabEntity);
+            //
+            //         // Set random speed, direction, and position within a spawn range
+            //         float randomSpeed = random.NextFloat(1f, 3f);
+            //         float3 randomDirection = math.normalize(random.NextFloat3Direction());
+            //         float3 randomOffset = random.NextFloat3(-10f, 10f); // Offset within a 10-unit range
+            //         float speed = state.EntityManager.GetComponentData<MoveSpeedComponent>(boidEntity).Speed;
+            //         state.EntityManager.SetComponentData(boidEntity, new MoveSpeedComponent { Speed = randomSpeed + speed });
+            //         state.EntityManager.SetComponentData(boidEntity, new DirectionComponent { Direction = randomDirection });
+            //         
+            //         // Set boid position relative to the spawner's position
+            //         float3 spawnPosition = localTransform.ValueRO.Position + randomOffset;
+            //         state.EntityManager.SetComponentData(boidEntity, LocalTransform.FromPosition(spawnPosition));
+            //
+            //         // Increment the boid count
+            //         CurrentBoidCount++;
+            //     }
+            // }
         }
     }
 }
