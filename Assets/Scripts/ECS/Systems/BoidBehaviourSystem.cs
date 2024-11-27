@@ -135,6 +135,7 @@ namespace ECS.Systems
                 // Loop over all boids to find neighbors
                 for (int i = 0; i < BoidDataArray.Length; i++)
                 {
+                    // Skip self
                     if (i == index) continue;
 
                     float3 neighborPosition = BoidDataArray[i].Position;
