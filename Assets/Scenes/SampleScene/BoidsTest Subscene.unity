@@ -193,13 +193,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df313608ceaa26549b81a263eb61894f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  NeighborRadius: 50
-  MoveSpeed: 25
-  AlignmentWeight: 1
+  NeighborRadius: 10
+  MoveSpeed: 10
+  AlignmentWeight: 10
   CohesionWeight: 10
-  SeparationWeight: 1
+  SeparationWeight: 10
   BoundaryCenter: {x: 0, y: 0, z: 0}
-  BoundarySize: 1
+  BoundarySize: 10
   BoundaryWeight: 10
 --- !u!4 &894795639
 Transform:
@@ -245,7 +245,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b0c1705e5f69f74bb57d07d95a008df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxBoidCount: 3000
+  MaxBoidCount: 200
 --- !u!4 &1103449392
 Transform:
   m_ObjectHideFlags: 0
