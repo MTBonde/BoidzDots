@@ -193,11 +193,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df313608ceaa26549b81a263eb61894f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+<<<<<<< Updated upstream:Assets/Scenes/SampleScene/Boids Subscene.unity
   NeighborRadius: 5
   MoveSpeed: 5
   AlignmentWeight: 1
   CohesionWeight: 1
   SeparationWeight: 1
+=======
+  NeighborRadius: 10
+  MoveSpeed: 25
+  AlignmentWeight: 1
+  CohesionWeight: 1
+  SeparationWeight: 1
+  BoundaryCenter: {x: 0, y: 0, z: 0}
+  BoundarySize: 10
+  BoundaryWeight: 10
+>>>>>>> Stashed changes:Assets/Scenes/SampleScene/BoidsTest Subscene.unity
 --- !u!4 &894795639
 Transform:
   m_ObjectHideFlags: 0
@@ -242,7 +253,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b0c1705e5f69f74bb57d07d95a008df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+<<<<<<< Updated upstream:Assets/Scenes/SampleScene/Boids Subscene.unity
   MaxBoidCount: 20000
+=======
+  MaxBoidCount: 600
+>>>>>>> Stashed changes:Assets/Scenes/SampleScene/BoidsTest Subscene.unity
 --- !u!4 &1103449392
 Transform:
   m_ObjectHideFlags: 0
