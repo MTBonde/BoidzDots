@@ -12,7 +12,8 @@ namespace ECS.Systems
     public struct BoidData
     {
         public float3 Position;
-        public float3 Velocity;
+        public float Speed;
+        public float3 Direction;
     }
 
     /// <summary>
@@ -26,6 +27,8 @@ namespace ECS.Systems
     [BurstCompile]
     public partial struct BoidBehaviorSystem : ISystem
     {
+        public void OnCreate(ref SystemState state) { state.RequireForUpdate<BoidSettings>(); }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
@@ -61,7 +64,8 @@ namespace ECS.Systems
                 BoidDataArray = boidDataArray,
                 Entities = entities,
                 LocalTransformLookup = state.GetComponentLookup<LocalTransform>(false),
-                VelocityLookup = state.GetComponentLookup<VelocityComponent>(false),
+                DirectionLookup = state.GetComponentLookup<DirectionComponent>(false),
+                SpeedLookup = state.GetComponentLookup<MoveSpeedComponent>(false)
             };
             state.Dependency = boidBehaviorJob.Schedule(boidCount, 64, state.Dependency);
             state.Dependency.Complete();
@@ -82,12 +86,13 @@ namespace ECS.Systems
             [NativeDisableParallelForRestriction]
             public NativeArray<BoidData> BoidDataArray;
 
-            public void Execute([EntityIndexInQuery] int index, in LocalTransform transform, in VelocityComponent velocity)
+            public void Execute([EntityIndexInQuery] int index, in LocalTransform transform, in DirectionComponent direction, in MoveSpeedComponent speed)
             {
                 BoidDataArray[index] = new BoidData
                 {
                     Position = transform.Position,
-                    Velocity = velocity.Velocity
+                    Speed = speed.Speed,
+                    Direction = math.normalize(direction.Direction)
                 };
             }
         }
@@ -110,32 +115,36 @@ namespace ECS.Systems
             public ComponentLookup<LocalTransform> LocalTransformLookup;
             
             [NativeDisableParallelForRestriction]
-            public ComponentLookup<VelocityComponent> VelocityLookup;
+            public ComponentLookup<DirectionComponent> DirectionLookup;
 
+            [NativeDisableParallelForRestriction]
+            public ComponentLookup<MoveSpeedComponent> SpeedLookup;
+            
             public void Execute(int index)
             {
                 BoidData currentBoid = BoidDataArray[index];
                 float3 currentPosition = currentBoid.Position;
-                float3 currentVelocity = currentBoid.Velocity;
+                float currentSpeed = currentBoid.Speed;
+                float3 currentDirection = currentBoid.Direction;
 
                 float3 alignment = float3.zero;
                 float3 cohesion = float3.zero;
                 float3 separation = float3.zero;
                 int neighborCount = 0;
 
-                // Loop over all boids to find neighbors (naive approach, not optimized, needs spartial partitioning)
+                // Loop over all boids to find neighbors
                 for (int i = 0; i < BoidDataArray.Length; i++)
                 {
                     if (i == index) continue;
 
                     float3 neighborPosition = BoidDataArray[i].Position;
-                    float3 neighborVelocity = BoidDataArray[i].Velocity;
+                    float3 neighborDirection = BoidDataArray[i].Direction;
 
                     float distance = math.distance(currentPosition, neighborPosition);
 
                     if (distance > 0 && distance < BoidSettings.NeighborRadius)
                     {
-                        alignment += neighborVelocity;
+                        alignment += neighborDirection;
                         cohesion += neighborPosition;
                         separation += (currentPosition - neighborPosition) / distance;
                         neighborCount++;
@@ -145,83 +154,55 @@ namespace ECS.Systems
                 // Calculate average alignment, cohesion, and separation
                 if (neighborCount > 0)
                 {
-                    alignment = alignment / neighborCount;
-                    alignment = math.normalize(alignment) * BoidSettings.AlignmentWeight;
+                    alignment = math.normalize(alignment / neighborCount) * BoidSettings.AlignmentWeight;
 
-                    cohesion = (cohesion / neighborCount) - currentPosition;
+                    cohesion = ((cohesion / neighborCount) - currentPosition);
                     cohesion = math.normalize(cohesion) * BoidSettings.CohesionWeight;
 
-                    separation = separation / neighborCount;
-                    separation = math.normalize(separation) * BoidSettings.SeparationWeight;
+                    separation = math.normalize(separation / neighborCount) * BoidSettings.SeparationWeight;
                 }
 
                 // Calculate acceleration
                 float3 acceleration = alignment + cohesion + separation;
 
-                // Update velocity
-                currentVelocity += acceleration * DeltaTime;
+                // Update direction
+                currentDirection += acceleration * DeltaTime;
+                currentDirection = math.normalize(currentDirection); // Ensure it stays normalized
 
-                // Limit speed
-                float speed = math.length(currentVelocity);
-                if (speed > BoidSettings.MoveSpeed)
-                {
-                    currentVelocity = (currentVelocity / speed) * BoidSettings.MoveSpeed;
-                }
+                // Update speed
+                currentSpeed = math.clamp(currentSpeed + math.length(acceleration) * DeltaTime, 0, BoidSettings.MoveSpeed);
 
                 // Update position
-                currentPosition += currentVelocity * DeltaTime;
+                currentPosition += currentDirection * currentSpeed * DeltaTime;
 
-                // Boundary checking
-                // (naive approach, not optimized, properly change to sphere boundary, or do an enum to change between shapes)
-                float3 minBounds = BoidSettings.BoundaryCenter - BoidSettings.BoundarySize;
-                float3 maxBounds = BoidSettings.BoundaryCenter + BoidSettings.BoundarySize;
-
-                float3 steer = float3.zero;
-
-                if (currentPosition.x < minBounds.x)
+                // Spherical boundary checking
+                float distanceFromCenter = math.distance(currentPosition, BoidSettings.BoundaryCenter);
+                if (distanceFromCenter > BoidSettings.BoundarySize)
                 {
-                    steer.x = BoidSettings.BoundaryWeight;
-                }
-                else if (currentPosition.x > maxBounds.x)
-                {
-                    steer.x = -BoidSettings.BoundaryWeight;
+                    // Steer back toward the center
+                    float3 directionToCenter = math.normalize(BoidSettings.BoundaryCenter - currentPosition);
+                    float3 steer = directionToCenter * BoidSettings.BoundaryWeight;
+
+                    // Adjust direction to incorporate steering
+                    currentDirection += steer * DeltaTime;
+                    currentDirection = math.normalize(currentDirection);
                 }
 
-                if (currentPosition.y < minBounds.y)
-                {
-                    steer.y = BoidSettings.BoundaryWeight;
-                }
-                else if (currentPosition.y > maxBounds.y)
-                {
-                    steer.y = -BoidSettings.BoundaryWeight;
-                }
-
-                if (currentPosition.z < minBounds.z)
-                {
-                    steer.z = BoidSettings.BoundaryWeight;
-                }
-                else if (currentPosition.z > maxBounds.z)
-                {
-                    steer.z = -BoidSettings.BoundaryWeight;
-                }
-
-                if (!math.all(steer == float3.zero))
-                {
-                    // Apply steering to bring boid back inside the boundary
-                    currentVelocity += math.normalize(steer) * BoidSettings.BoundaryWeight * DeltaTime;
-                }
-
-                // Update components
+                // Update entity components
                 Entity entity = Entities[index];
 
                 var transform = LocalTransformLookup[entity];
                 transform.Position = currentPosition;
-                transform.Rotation = quaternion.LookRotationSafe(currentVelocity, math.up());
+                transform.Rotation = quaternion.LookRotationSafe(currentDirection, math.up());
                 LocalTransformLookup[entity] = transform;
 
-                var velocity = VelocityLookup[entity];
-                velocity.Velocity = currentVelocity;
-                VelocityLookup[entity] = velocity;
+                var speedComponent = SpeedLookup[entity];
+                speedComponent.Speed = currentSpeed;
+                SpeedLookup[entity] = speedComponent;
+
+                var directionComponent = DirectionLookup[entity];
+                directionComponent.Direction = currentDirection;
+                DirectionLookup[entity] = directionComponent;
             }
         }
     }
