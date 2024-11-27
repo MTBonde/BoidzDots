@@ -163,7 +163,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: edeb652c946e5e040b331c143cebb84b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  BoidPrefabGameObject: {fileID: 6427597685377552813, guid: 5be2090a162831841a8f957ffd16b960, type: 3}
+  BoidPrefabGameObject: {fileID: 9069040632846253451, guid: bfe2b6a3901d3f34aa7bde6536f8bda0, type: 3}
 --- !u!1 &894795637
 GameObject:
   m_ObjectHideFlags: 0
@@ -193,11 +193,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df313608ceaa26549b81a263eb61894f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  NeighborRadius: 5
-  MoveSpeed: 5
-  AlignmentWeight: 1
-  CohesionWeight: 1
-  SeparationWeight: 1
+  NeighborRadius: 10
+  MoveSpeed: 10
+  AlignmentWeight: 10
+  CohesionWeight: 10
+  SeparationWeight: 10
+  BoundaryCenter: {x: 0, y: 0, z: 0}
+  BoundarySize: 10
+  BoundaryWeight: 10
 --- !u!4 &894795639
 Transform:
   m_ObjectHideFlags: 0
@@ -242,7 +245,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b0c1705e5f69f74bb57d07d95a008df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxBoidCount: 20000
+  MaxBoidCount: 200
 --- !u!4 &1103449392
 Transform:
   m_ObjectHideFlags: 0
