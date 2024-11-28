@@ -12,7 +12,12 @@ namespace ECS.Authoring
     [DisallowMultipleComponent]
     public class BoidSettingsAuthoring : MonoBehaviour
     {
+        // Neighbor settings
         public float NeighborRadius = 5f;
+        public int MaxNeighbors = 10;
+        public int SpatialCellSize = 10;
+        
+        // Boid behavior settings
         public float MoveSpeed = 5f;
         public float AlignmentWeight = 1f;
         public float CohesionWeight = 1f;
@@ -20,8 +25,8 @@ namespace ECS.Authoring
         
         // Boundary settings
         public Vector3 BoundaryCenter = Vector3.zero;
-        public float BoundarySize = 50f; // Half the size of the area
-        public float BoundaryWeight = 10f; // Steering force when outside boundary
+        public float BoundarySize = 50f; 
+        public float BoundaryWeight = 10f; 
 
         private Entity boidSettingsEntity;
         private EntityManager entityManager;
@@ -42,6 +47,8 @@ namespace ECS.Authoring
             {
                 BoidSettings boidSettings = entityManager.GetComponentData<BoidSettings>(boidSettingsEntity);
                 boidSettings.NeighborRadius = NeighborRadius;
+                boidSettings.MaxNeighbors = MaxNeighbors;
+                boidSettings.SpatialCellSize = SpatialCellSize;
                 boidSettings.MoveSpeed = MoveSpeed;
                 boidSettings.AlignmentWeight = AlignmentWeight;
                 boidSettings.CohesionWeight = CohesionWeight;
@@ -61,6 +68,8 @@ namespace ECS.Authoring
                 AddComponent(entity, new BoidSettings
                 {
                     NeighborRadius = authoring.NeighborRadius,
+                    MaxNeighbors = authoring.MaxNeighbors,
+                    SpatialCellSize = authoring.SpatialCellSize,
                     MoveSpeed = authoring.MoveSpeed,
                     AlignmentWeight = authoring.AlignmentWeight,
                     CohesionWeight = authoring.CohesionWeight,
@@ -78,7 +87,12 @@ namespace ECS.Authoring
     /// </summary>
     public struct BoidSettings : IComponentData
     {
+        // neighbor settings
         public float NeighborRadius;
+        public int MaxNeighbors;
+        public int SpatialCellSize;
+        
+        // boid behavior settings
         public float MoveSpeed;
         public float AlignmentWeight;
         public float CohesionWeight;
@@ -86,7 +100,7 @@ namespace ECS.Authoring
         
         // Boundary parameters
         public float3 BoundaryCenter;
-        public float BoundarySize; // Half the size of the cube (extent)
-        public float BoundaryWeight; // How strongly boids steer back when outside
+        public float BoundarySize; 
+        public float BoundaryWeight;
     }
 }

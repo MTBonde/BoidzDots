@@ -25,6 +25,7 @@ namespace ECS.Systems
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            state.RequireForUpdate<BoidSettings>();
             state.RequireForUpdate<EntitiesReferences>();
             state.RequireForUpdate<BoidSpawner>();
         }
@@ -39,6 +40,7 @@ namespace ECS.Systems
         {
             // Retrieve references for boid prefab and spawner settings
             EntitiesReferences entitiesReferences = SystemAPI.GetSingleton<EntitiesReferences>();
+            BoidSettings boidSettings = SystemAPI.GetSingleton<BoidSettings>();
             Random random = new Random((uint)UnityEngine.Random.Range(1, int.MaxValue));
 
             // Iterate through all enteties with boid spawner components, set read-only
@@ -53,14 +55,24 @@ namespace ECS.Systems
                 {
                     Entity boidEntity = state.EntityManager.Instantiate(entitiesReferences.BoidPrefabEntity);
 
-                    // Set random velocity for boid
-                    float3 randomVelocity = random.NextFloat3Direction() * random.NextFloat(1f, 3f);
-                    state.EntityManager.SetComponentData(boidEntity, new VelocityComponent { Velocity = randomVelocity });
-
-                    // Set boid position relative to the spawner's position
-                    float3 randomOffset = random.NextFloat3(-10f, 10f);
-                    float3 spawnPosition = localTransform.ValueRO.Position + randomOffset;
+                    // Set random spawn position relative to the spawner's position
+                    float3 positionOffset = random.NextFloat3(-10f, 10f);
+                    float3 spawnPosition = localTransform.ValueRO.Position + positionOffset;
                     state.EntityManager.SetComponentData(boidEntity, LocalTransform.FromPosition(spawnPosition));
+
+                    // Generate a random target point near the boundary center
+                    float3 targetOffset = random.NextFloat3(-10f, 10f);
+                    float3 boundaryCenter = boidSettings.BoundaryCenter;
+                    float3 targetPosition = boundaryCenter + targetOffset;
+                    
+                    // Calculate the direction from spawn position to the target point
+                    float3 direction = math.normalize(targetPosition - spawnPosition);
+
+                    // Set the DirectionComponent
+                    state.EntityManager.SetComponentData(boidEntity, new DirectionComponent { Direction = direction });
+
+                    // If you have a MoveSpeedComponent, assign a random speed
+                    float speed = random.NextFloat(1f, 3f);
 
                     CurrentBoidCount++;
                 }
