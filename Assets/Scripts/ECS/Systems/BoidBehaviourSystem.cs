@@ -270,10 +270,7 @@ namespace ECS.Systems
 
                 // Update speed
                 boid.Speed = math.clamp(boid.Speed + math.length(acceleration) * DeltaTime, 0, BoidSettings.MoveSpeed);
-
-                // // Update position
-                // boid.Position += boid.Direction * boid.Speed * DeltaTime;
-
+               
                 // Spherical boundary checking
                 float distanceFromCenter = math.distance(boid.Position, BoidSettings.BoundaryCenter);
                 if (distanceFromCenter > BoidSettings.BoundarySize)
@@ -281,7 +278,7 @@ namespace ECS.Systems
                     // Steer back toward the center
                     float3 directionToCenter = math.normalize(BoidSettings.BoundaryCenter - boid.Position);
                     float3 steer = directionToCenter * BoidSettings.BoundaryWeight;
-
+                
                     // Adjust direction to incorporate steering
                     boid.Direction += steer * DeltaTime;
                     boid.Direction = math.normalize(boid.Direction);
@@ -329,33 +326,3 @@ namespace ECS.Systems
         }
     }
 }
-
-
-// // Other boundaries saved for later
-// public void Execute(ref LocalTransform transform)
-// {
-//     float3 position = transform.Position;
-//
-//     position.x = math.clamp(position.x, BoundaryCenter.x - BoundarySize, BoundaryCenter.x + BoundarySize);
-//     position.y = math.clamp(position.y, BoundaryCenter.y - BoundarySize, BoundaryCenter.y + BoundarySize);
-//     position.z = math.clamp(position.z, BoundaryCenter.z - BoundarySize, BoundaryCenter.z + BoundarySize);
-//
-//     transform.Position = position;
-// }
-// public void Execute(ref LocalTransform transform)
-// {
-//     float3 position = transform.Position;
-//
-//     float halfSize = BoundarySize / 2f;
-//
-//     position.x = WrapAround(position.x, BoundaryCenter.x - halfSize, BoundaryCenter.x + halfSize);
-//     position.y = WrapAround(position.y, BoundaryCenter.y - halfSize, BoundaryCenter.y + halfSize);
-//     position.z = WrapAround(position.z, BoundaryCenter.z - halfSize, BoundaryCenter.z + halfSize);
-//
-//     transform.Position = position;
-// }
-//
-// private static float WrapAround(float value, float min, float max)
-// {
-//     return (value < min) ? max : (value > max) ? min : value;
-// }

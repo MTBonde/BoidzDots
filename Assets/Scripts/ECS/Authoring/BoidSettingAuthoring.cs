@@ -13,50 +13,65 @@ namespace ECS.Authoring
     public class BoidSettingsAuthoring : MonoBehaviour
     {
         // Neighbor settings
+        [Header("Neighbor Settings")]
         public float NeighborRadius = 5f;
         public int MaxNeighbors = 10;
         public int SpatialCellSize = 10;
-        
+
         // Boid behavior settings
+        [Header("Boid Behavior Settings")]
         public float MoveSpeed = 5f;
         public float AlignmentWeight = 1f;
         public float CohesionWeight = 1f;
         public float SeparationWeight = 1f;
-        
+
         // Boundary settings
+        [Header("Boundary Settings")] 
+        public BoundaryType BoundaryType = BoundaryType.Sphere;
         public Vector3 BoundaryCenter = Vector3.zero;
         public float BoundarySize = 50f; 
-        public float BoundaryWeight = 10f; 
+        public float BoundaryWeight = 10f;
 
-        private Entity boidSettingsEntity;
-        private EntityManager entityManager;
 
-        void Awake()
+        private Entity _boidSettingsEntity;
+        private EntityManager _entityManager;
+
+        private void Awake()
         {
             // Get the EntityManager and singleton entity
-            entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
-            boidSettingsEntity = entityManager.CreateEntityQuery(typeof(BoidSettings)).GetSingletonEntity();
+            _entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            _boidSettingsEntity = _entityManager.CreateEntityQuery(typeof(BoidSettings)).GetSingletonEntity();
         }
 
-        void OnValidate()
+        private void OnValidate()
         {
             if (!Application.isPlaying)
                 return;
 
-            if (boidSettingsEntity != Entity.Null)
+            if (_boidSettingsEntity != Entity.Null)
             {
-                BoidSettings boidSettings = entityManager.GetComponentData<BoidSettings>(boidSettingsEntity);
+                // Get the BoidSettings component from the singleton entity
+                BoidSettings boidSettings = _entityManager.GetComponentData<BoidSettings>(_boidSettingsEntity);
+                
+                // Neighbor settings
                 boidSettings.NeighborRadius = NeighborRadius;
                 boidSettings.MaxNeighbors = MaxNeighbors;
                 boidSettings.SpatialCellSize = SpatialCellSize;
+                
+                // Boid behavior settings
                 boidSettings.MoveSpeed = MoveSpeed;
                 boidSettings.AlignmentWeight = AlignmentWeight;
                 boidSettings.CohesionWeight = CohesionWeight;
                 boidSettings.SeparationWeight = SeparationWeight;
+                
+                // Boundary settings
+                boidSettings.BoundaryType = BoundaryType;
                 boidSettings.BoundaryCenter = BoundaryCenter;
                 boidSettings.BoundarySize = BoundarySize;
                 boidSettings.BoundaryWeight = BoundaryWeight;
-                entityManager.SetComponentData(boidSettingsEntity, boidSettings);
+                
+                // Update the singleton entity
+                _entityManager.SetComponentData(_boidSettingsEntity, boidSettings);
             }
         }
 
@@ -67,13 +82,19 @@ namespace ECS.Authoring
                 Entity entity = GetEntity(TransformUsageFlags.Dynamic);
                 AddComponent(entity, new BoidSettings
                 {
+                    // Neighbor settings
                     NeighborRadius = authoring.NeighborRadius,
                     MaxNeighbors = authoring.MaxNeighbors,
                     SpatialCellSize = authoring.SpatialCellSize,
+                    
+                    // Boid behavior settings
                     MoveSpeed = authoring.MoveSpeed,
                     AlignmentWeight = authoring.AlignmentWeight,
                     CohesionWeight = authoring.CohesionWeight,
                     SeparationWeight = authoring.SeparationWeight,
+                    
+                    // Boundary settings
+                    BoundaryType = authoring.BoundaryType,
                     BoundaryCenter = authoring.BoundaryCenter,
                     BoundarySize = authoring.BoundarySize,
                     BoundaryWeight = authoring.BoundaryWeight
@@ -99,8 +120,16 @@ namespace ECS.Authoring
         public float SeparationWeight;
         
         // Boundary parameters
+        public BoundaryType BoundaryType;
         public float3 BoundaryCenter;
         public float BoundarySize; 
         public float BoundaryWeight;
+    }
+    
+    public enum BoundaryType
+    {
+        Sphere,
+        Box,
+        Donut
     }
 }
