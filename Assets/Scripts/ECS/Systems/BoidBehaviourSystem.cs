@@ -39,7 +39,7 @@ namespace ECS.Systems
 
             // Get boid query
             var boidQuery = SystemAPI.QueryBuilder()
-                .WithAll<BoidTag, LocalTransform, VelocityComponent>()
+                .WithAll<BoidTag, LocalTransform, DirectionComponent, MoveSpeedComponent>()
                 .Build();
 
             // Get boid count
@@ -86,7 +86,11 @@ namespace ECS.Systems
             [NativeDisableParallelForRestriction]
             public NativeArray<BoidData> BoidDataArray;
 
-            public void Execute([EntityIndexInQuery] int index, in LocalTransform transform, in DirectionComponent direction, in MoveSpeedComponent speed)
+            public void Execute(
+                [EntityIndexInQuery] int index,
+                in LocalTransform transform,
+                in DirectionComponent direction,
+                in MoveSpeedComponent speed)
             {
                 BoidDataArray[index] = new BoidData
                 {
