@@ -16,18 +16,13 @@ namespace ECS.Systems
         public float3 Direction;
     }
 
-    /// <summary>
-    /// A crude test implementation of a boid behavior system.
-    /// No optimizations have been made, this is just a simple test.
-    /// First retrieve the boid settings from the singleton, then query for all boids in the scene, with specefic components.
-    /// Allocate memory for nativearrays to store boid data and entities.
-    /// then create and schuule data collections and behavior jobs.
-    /// Last dispose of native arrays
-    /// </summary>
     [BurstCompile]
     public partial struct BoidBehaviorSystem : ISystem
     {
-        public void OnCreate(ref SystemState state) { state.RequireForUpdate<BoidSettings>(); }
+        public void OnCreate(ref SystemState state)
+        {
+            state.RequireForUpdate<BoidSettings>();
+        }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
@@ -48,7 +43,7 @@ namespace ECS.Systems
             NativeArray<BoidData> boidDataArray = new NativeArray<BoidData>(boidCount, Allocator.TempJob);
             NativeArray<Entity> entities = boidQuery.ToEntityArray(Allocator.TempJob);
 
-            // Creat and schedule data collection job
+            // Step 1: Collect Boid Data into a NativeArray
             var collectJob = new CollectBoidDataJob
             {
                 BoidDataArray = boidDataArray
@@ -56,30 +51,64 @@ namespace ECS.Systems
             state.Dependency = collectJob.ScheduleParallel(boidQuery, state.Dependency);
             state.Dependency.Complete();
 
-            // Create and schedule boid behavior job
-            var boidBehaviorJob = new BoidBehaviorJob
+            // Step 2: Build Spatial Hash Map and place boids into cells
+            float cellSize = boidSettings.SpatialCellSize;
+            NativeParallelMultiHashMap<int, int> spatialHashMap = new NativeParallelMultiHashMap<int, int>(boidCount, Allocator.TempJob);
+
+            var buildHashMapJob = new BuildSpatialHashMapJob
             {
+                BoidDataArray = boidDataArray,
+                SpatialHashMap = spatialHashMap.AsParallelWriter(),
+                CellSize = cellSize
+            };
+            state.Dependency = buildHashMapJob.Schedule(boidCount, 64, state.Dependency);
+            state.Dependency.Complete();
+
+            // Step 3: Find Neighbors in the shared hashmap
+            NativeArray<NeighborData> neighborDataArray = new NativeArray<NeighborData>(boidCount, Allocator.TempJob);
+            var findNeighborsJob = new FindNeighborsJob
+            {
+                BoidDataArray = boidDataArray,
+                SpatialHashMap = spatialHashMap,
+                NeighborDataArray = neighborDataArray,
+                CellSize = cellSize,
+                BoidSettings = boidSettings
+            };
+            state.Dependency = findNeighborsJob.Schedule(boidCount, 64, state.Dependency);
+            state.Dependency.Complete();
+
+            // Step 4: Calculate Boid Behavior
+            var calculateBehaviorJob = new CalculateBoidBehaviorJob
+            {
+                BoidDataArray = boidDataArray,
+                NeighborDataArray = neighborDataArray,
                 DeltaTime = deltaTime,
-                BoidSettings = boidSettings,
+                BoidSettings = boidSettings
+            };
+            state.Dependency = calculateBehaviorJob.Schedule(boidCount, 64, state.Dependency);
+            state.Dependency.Complete();
+
+            // Step 6: Update Boids with new data
+            var updateBoidsJob = new UpdateBoidsJob
+            {
                 BoidDataArray = boidDataArray,
                 Entities = entities,
+                DeltaTime = deltaTime,
+                BoidSettings = boidSettings,
                 LocalTransformLookup = state.GetComponentLookup<LocalTransform>(false),
                 DirectionLookup = state.GetComponentLookup<DirectionComponent>(false),
                 SpeedLookup = state.GetComponentLookup<MoveSpeedComponent>(false)
             };
-            state.Dependency = boidBehaviorJob.Schedule(boidCount, 64, state.Dependency);
+            state.Dependency = updateBoidsJob.Schedule(boidCount, 64, state.Dependency);
             state.Dependency.Complete();
 
             // Dispose of native arrays
             boidDataArray.Dispose();
             entities.Dispose();
+            spatialHashMap.Dispose();
+            neighborDataArray.Dispose();
         }
 
-        /// <summary>
-        /// A job that collects boid data such as position and velocity for all boids in the scene.
-        /// This job processes entities with the LocalTransform and VelocityComponent components,
-        /// storing their data into a NativeArray of BoidData.
-        /// </summary>
         [BurstCompile]
         public partial struct CollectBoidDataJob : IJobEntity
         {
@@ -101,114 +130,232 @@ namespace ECS.Systems
             }
         }
 
-        /// <summary>
-        /// A job for handling individual boid behavior updates in parallel.
-        /// It calculates the movement for each boid based on its velocity and the provided settings.
-        /// The job works in parallel for each boid in the BoidDataArray.
-        /// </summary>
         [BurstCompile]
-        public struct BoidBehaviorJob : IJobParallelFor
+        public struct BuildSpatialHashMapJob : IJobParallelFor
         {
-            public float DeltaTime;
+            [ReadOnly] public NativeArray<BoidData> BoidDataArray;
+            public NativeParallelMultiHashMap<int, int>.ParallelWriter SpatialHashMap;
+            public float CellSize;
+
+            public void Execute(int index)
+            {
+                BoidData boid = BoidDataArray[index];
+                int3 cell = GridPosition(boid.Position, CellSize);
+                int hash = Hash(cell);
+
+                SpatialHashMap.Add(hash, index);
+            }
+
+            public static int3 GridPosition(float3 position, float cellSize) => 
+                new(math.floor(position / cellSize));
+
+            public static int Hash(int3 gridPos) =>
+                (gridPos.x * 73856093) ^ (gridPos.y * 19349669) ^ (gridPos.z * 83492791);
+        }
+
+        public struct NeighborData
+        {
+            public float3 Alignment;
+            public float3 Cohesion;
+            public float3 Separation;
+            public int NeighborCount;
+        }
+
+        [BurstCompile]
+        public struct FindNeighborsJob : IJobParallelFor
+        {
+            [ReadOnly] public NativeArray<BoidData> BoidDataArray;
+            [ReadOnly] public NativeParallelMultiHashMap<int, int> SpatialHashMap;
+            public NativeArray<NeighborData> NeighborDataArray;
+            public float CellSize;
             public BoidSettings BoidSettings;
 
-            [ReadOnly] public NativeArray<BoidData> BoidDataArray;
-            [ReadOnly] public NativeArray<Entity> Entities;
-
-            [NativeDisableParallelForRestriction]
-            public ComponentLookup<LocalTransform> LocalTransformLookup;
-            
-            [NativeDisableParallelForRestriction]
-            public ComponentLookup<DirectionComponent> DirectionLookup;
-
-            [NativeDisableParallelForRestriction]
-            public ComponentLookup<MoveSpeedComponent> SpeedLookup;
-            
             public void Execute(int index)
             {
                 BoidData currentBoid = BoidDataArray[index];
                 float3 currentPosition = currentBoid.Position;
-                float currentSpeed = currentBoid.Speed;
-                float3 currentDirection = currentBoid.Direction;
 
                 float3 alignment = float3.zero;
                 float3 cohesion = float3.zero;
                 float3 separation = float3.zero;
                 int neighborCount = 0;
 
-                // Loop over all boids to find neighbors
-                for (int i = 0; i < BoidDataArray.Length; i++)
+                // Get neighboring cells
+                int3 currentCell = BuildSpatialHashMapJob.GridPosition(currentPosition, CellSize);
+
+                for (int x = -1; x <= 1; x++)
                 {
-                    // Skip self
-                    if (i == index) continue;
-
-                    float3 neighborPosition = BoidDataArray[i].Position;
-                    float3 neighborDirection = BoidDataArray[i].Direction;
-
-                    float distance = math.distance(currentPosition, neighborPosition);
-
-                    if (distance > 0 && distance < BoidSettings.NeighborRadius)
+                    for (int y = -1; y <= 1; y++)
                     {
-                        alignment += neighborDirection;
-                        cohesion += neighborPosition;
-                        separation += (currentPosition - neighborPosition) / distance;
-                        neighborCount++;
+                        for (int z = -1; z <= 1; z++)
+                        {
+                            int3 neighborCell = currentCell + new int3(x, y, z);
+                            int hash = BuildSpatialHashMapJob.Hash(neighborCell);
+
+                            NativeParallelMultiHashMapIterator<int> iterator;
+                            int neighborIndex;
+                            if (SpatialHashMap.TryGetFirstValue(hash, out neighborIndex, out iterator))
+                            {
+                                do
+                                {
+                                    if (neighborIndex == index)
+                                        continue;
+
+                                    BoidData neighborBoid = BoidDataArray[neighborIndex];
+                                    float3 neighborPosition = neighborBoid.Position;
+                                    float3 neighborDirection = neighborBoid.Direction;
+
+                                    float distanceSq = math.lengthsq(currentPosition - neighborPosition);
+                                    float neighborRadiusSq = BoidSettings.NeighborRadius * BoidSettings.NeighborRadius;
+
+                                    if (distanceSq < neighborRadiusSq)
+                                    {
+                                        alignment += neighborDirection;
+                                        cohesion += neighborPosition;
+                                        separation += (currentPosition - neighborPosition);
+                                        neighborCount++;
+                                        
+                                        if (neighborCount >= BoidSettings.MaxNeighbors)
+                                            break;
+                                    }
+                                } while (SpatialHashMap.TryGetNextValue(out neighborIndex, ref iterator));
+                            }
+                        }
                     }
                 }
 
-                // Calculate average alignment, cohesion, and separation
-                if (neighborCount > 0)
+                NeighborDataArray[index] = new NeighborData
                 {
-                    alignment = math.normalize(alignment / neighborCount) * BoidSettings.AlignmentWeight;
+                    Alignment = alignment,
+                    Cohesion = cohesion,
+                    Separation = separation,
+                    NeighborCount = neighborCount
+                };
+            }
+        }
 
-                    cohesion = ((cohesion / neighborCount) - currentPosition);
+        [BurstCompile]
+        public struct CalculateBoidBehaviorJob : IJobParallelFor
+        {
+            public NativeArray<BoidData> BoidDataArray;
+            [ReadOnly] public NativeArray<NeighborData> NeighborDataArray;
+            public float DeltaTime;
+            public BoidSettings BoidSettings;
+
+            public void Execute(int index)
+            {
+                BoidData boid = BoidDataArray[index];
+                NeighborData neighborData = NeighborDataArray[index];
+
+                float3 alignment = float3.zero;
+                float3 cohesion = float3.zero;
+                float3 separation = float3.zero;
+
+                if (neighborData.NeighborCount > 0)
+                {
+                    alignment = math.normalize(neighborData.Alignment / neighborData.NeighborCount) * BoidSettings.AlignmentWeight;
+
+                    cohesion = ((neighborData.Cohesion / neighborData.NeighborCount) - boid.Position);
                     cohesion = math.normalize(cohesion) * BoidSettings.CohesionWeight;
 
-                    separation = math.normalize(separation / neighborCount) * BoidSettings.SeparationWeight;
+                    separation = math.normalize(neighborData.Separation / neighborData.NeighborCount) * BoidSettings.SeparationWeight;
                 }
 
                 // Calculate acceleration
                 float3 acceleration = alignment + cohesion + separation;
 
                 // Update direction
-                currentDirection += acceleration * DeltaTime;
-                currentDirection = math.normalize(currentDirection); // Ensure it stays normalized
+                boid.Direction += acceleration * DeltaTime;
+                boid.Direction = math.normalize(boid.Direction);
 
                 // Update speed
-                currentSpeed = math.clamp(currentSpeed + math.length(acceleration) * DeltaTime, 0, BoidSettings.MoveSpeed);
+                boid.Speed = math.clamp(boid.Speed + math.length(acceleration) * DeltaTime, 0, BoidSettings.MoveSpeed);
 
-                // Update position
-                currentPosition += currentDirection * currentSpeed * DeltaTime;
+                // // Update position
+                // boid.Position += boid.Direction * boid.Speed * DeltaTime;
 
                 // Spherical boundary checking
-                float distanceFromCenter = math.distance(currentPosition, BoidSettings.BoundaryCenter);
+                float distanceFromCenter = math.distance(boid.Position, BoidSettings.BoundaryCenter);
                 if (distanceFromCenter > BoidSettings.BoundarySize)
                 {
                     // Steer back toward the center
-                    float3 directionToCenter = math.normalize(BoidSettings.BoundaryCenter - currentPosition);
+                    float3 directionToCenter = math.normalize(BoidSettings.BoundaryCenter - boid.Position);
                     float3 steer = directionToCenter * BoidSettings.BoundaryWeight;
 
                     // Adjust direction to incorporate steering
-                    currentDirection += steer * DeltaTime;
-                    currentDirection = math.normalize(currentDirection);
+                    boid.Direction += steer * DeltaTime;
+                    boid.Direction = math.normalize(boid.Direction);
                 }
 
-                // Update entity components
+                BoidDataArray[index] = boid;
+            }
+        }
+
+        [BurstCompile]
+        public struct UpdateBoidsJob : IJobParallelFor
+        {
+            [ReadOnly] public NativeArray<BoidData> BoidDataArray;
+            [ReadOnly] public NativeArray<Entity> Entities;
+            public float DeltaTime;
+            public BoidSettings BoidSettings;
+
+            [NativeDisableParallelForRestriction]
+            public ComponentLookup<LocalTransform> LocalTransformLookup;
+
+            [NativeDisableParallelForRestriction]
+            public ComponentLookup<DirectionComponent> DirectionLookup;
+
+            [NativeDisableParallelForRestriction]
+            public ComponentLookup<MoveSpeedComponent> SpeedLookup;
+
+            public void Execute(int index)
+            {
+                BoidData boid = BoidDataArray[index];
                 Entity entity = Entities[index];
 
                 var transform = LocalTransformLookup[entity];
-                transform.Position = currentPosition;
-                transform.Rotation = quaternion.LookRotationSafe(currentDirection, math.up());
+                transform.Position = boid.Position;
+                transform.Rotation = quaternion.LookRotationSafe(boid.Direction, math.up());
                 LocalTransformLookup[entity] = transform;
 
                 var speedComponent = SpeedLookup[entity];
-                speedComponent.Speed = currentSpeed;
+                speedComponent.Speed = boid.Speed;
                 SpeedLookup[entity] = speedComponent;
 
                 var directionComponent = DirectionLookup[entity];
-                directionComponent.Direction = currentDirection;
+                directionComponent.Direction = boid.Direction;
                 DirectionLookup[entity] = directionComponent;
             }
         }
     }
 }
+
+
+// // Other boundaries saved for later
+// public void Execute(ref LocalTransform transform)
+// {
+//     float3 position = transform.Position;
+//
+//     position.x = math.clamp(position.x, BoundaryCenter.x - BoundarySize, BoundaryCenter.x + BoundarySize);
+//     position.y = math.clamp(position.y, BoundaryCenter.y - BoundarySize, BoundaryCenter.y + BoundarySize);
+//     position.z = math.clamp(position.z, BoundaryCenter.z - BoundarySize, BoundaryCenter.z + BoundarySize);
+//
+//     transform.Position = position;
+// }
+// public void Execute(ref LocalTransform transform)
+// {
+//     float3 position = transform.Position;
+//
+//     float halfSize = BoundarySize / 2f;
+//
+//     position.x = WrapAround(position.x, BoundaryCenter.x - halfSize, BoundaryCenter.x + halfSize);
+//     position.y = WrapAround(position.y, BoundaryCenter.y - halfSize, BoundaryCenter.y + halfSize);
+//     position.z = WrapAround(position.z, BoundaryCenter.z - halfSize, BoundaryCenter.z + halfSize);
+//
+//     transform.Position = position;
+// }
+//
+// private static float WrapAround(float value, float min, float max)
+// {
+//     return (value < min) ? max : (value > max) ? min : value;
+// }
