@@ -5,6 +5,8 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Physics;
+using Unity.Physics.Systems;
 using Unity.Transforms;
 
 namespace ECS.Systems
@@ -12,10 +14,13 @@ namespace ECS.Systems
     public struct BoidData
     {
         public float3 Position;
+        public float3 Velocity;
         public float Speed;
         public float3 Direction;
     }
 
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
+    [UpdateAfter(typeof(TransformSystemGroup))]
     [BurstCompile]
     public partial struct BoidBehaviorSystem : ISystem
     {
@@ -34,7 +39,12 @@ namespace ECS.Systems
 
             // Get boid query
             var boidQuery = SystemAPI.QueryBuilder()
-                .WithAll<BoidTag, LocalTransform, DirectionComponent, MoveSpeedComponent>()
+                .WithAll<
+                    BoidTag, 
+                    LocalTransform, 
+                    PhysicsVelocity,
+                    DirectionComponent, 
+                    MoveSpeedComponent>() 
                 .Build();
 
             // Get boid count
@@ -93,11 +103,11 @@ namespace ECS.Systems
             {
                 BoidDataArray = boidDataArray,
                 Entities = entities,
-                DeltaTime = deltaTime,
-                BoidSettings = boidSettings,
-                LocalTransformLookup = state.GetComponentLookup<LocalTransform>(false),
-                DirectionLookup = state.GetComponentLookup<DirectionComponent>(false),
-                SpeedLookup = state.GetComponentLookup<MoveSpeedComponent>(false)
+                // DeltaTime = deltaTime,
+                // BoidSettings = boidSettings,
+                SpeedLookup = state.GetComponentLookup<MoveSpeedComponent>(false),
+                PhysicsVelocityLookup = state.GetComponentLookup<PhysicsVelocity>(false),
+                DirectionLookup = state.GetComponentLookup<DirectionComponent>(false)
             };
             state.Dependency = updateBoidsJob.Schedule(boidCount, 64, state.Dependency);
             state.Dependency.Complete();
@@ -118,12 +128,14 @@ namespace ECS.Systems
             public void Execute(
                 [EntityIndexInQuery] int index,
                 in LocalTransform transform,
+                in PhysicsVelocity velocity,
                 in DirectionComponent direction,
                 in MoveSpeedComponent speed)
             {
                 BoidDataArray[index] = new BoidData
                 {
                     Position = transform.Position,
+                    Velocity = velocity.Linear,
                     Speed = speed.Speed,
                     Direction = math.normalize(direction.Direction)
                 };
@@ -293,35 +305,33 @@ namespace ECS.Systems
         {
             [ReadOnly] public NativeArray<BoidData> BoidDataArray;
             [ReadOnly] public NativeArray<Entity> Entities;
-            public float DeltaTime;
-            public BoidSettings BoidSettings;
+            
+            // public float DeltaTime;
+            // public BoidSettings BoidSettings;
 
-            [NativeDisableParallelForRestriction]
-            public ComponentLookup<LocalTransform> LocalTransformLookup;
-
-            [NativeDisableParallelForRestriction]
-            public ComponentLookup<DirectionComponent> DirectionLookup;
-
-            [NativeDisableParallelForRestriction]
-            public ComponentLookup<MoveSpeedComponent> SpeedLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<PhysicsVelocity> PhysicsVelocityLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<DirectionComponent> DirectionLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<MoveSpeedComponent> SpeedLookup;
 
             public void Execute(int index)
             {
                 BoidData boid = BoidDataArray[index];
                 Entity entity = Entities[index];
 
-                var transform = LocalTransformLookup[entity];
-                transform.Position = boid.Position;
-                transform.Rotation = quaternion.LookRotationSafe(boid.Direction, math.up());
-                LocalTransformLookup[entity] = transform;
+                var velocity = PhysicsVelocityLookup[entity];
 
+                // Apply calculated velocity to PhysicsVelocity
+                velocity.Linear = boid.Direction * boid.Speed;
+                PhysicsVelocityLookup[entity] = velocity;
+                
+                // Update DirectionComponent
+                DirectionComponent directionComponent = new DirectionComponent { Direction = boid.Direction };
+                DirectionLookup[entity] = directionComponent;
+                
+                // Update MoveSpeedComponent
                 var speedComponent = SpeedLookup[entity];
                 speedComponent.Speed = boid.Speed;
                 SpeedLookup[entity] = speedComponent;
-
-                var directionComponent = DirectionLookup[entity];
-                directionComponent.Direction = boid.Direction;
-                DirectionLookup[entity] = directionComponent;
             }
         }
     }
