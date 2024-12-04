@@ -71,7 +71,7 @@ namespace ECS.Systems
                     // Set the DirectionComponent
                     state.EntityManager.SetComponentData(boidEntity, new DirectionComponent { Direction = direction });
 
-                    // If you have a MoveSpeedComponent, assign a random speed
+                    // Set the MoveSpeedComponent
                     float speed = random.NextFloat(1f, 3f);
 
                     CurrentBoidCount++;
