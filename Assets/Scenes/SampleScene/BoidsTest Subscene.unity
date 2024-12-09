@@ -661,7 +661,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b0c1705e5f69f74bb57d07d95a008df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxBoidCount: 10000
+  MaxBoidCount: 4096
 --- !u!4 &1103449392
 Transform:
   m_ObjectHideFlags: 0
@@ -691,11 +691,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   NeighborRadius: 10
   MaxNeighbors: 10
-  SpatialCellSize: 10
+  SpatialCellSize: 9
   MoveSpeed: 25
   AlignmentWeight: 1
-  CohesionWeight: 1
-  SeparationWeight: 2
+  CohesionWeight: 5
+  SeparationWeight: 3
   BoundaryType: 0
   BoundaryCenter: {x: -30, y: 0, z: 0}
   BoundarySize: 50

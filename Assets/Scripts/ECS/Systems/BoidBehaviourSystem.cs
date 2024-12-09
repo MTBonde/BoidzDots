@@ -48,8 +48,9 @@ namespace ECS.Systems
             {
                 BoidDataArray = boidDataArray
             };
-            state.Dependency = collectJob.ScheduleParallel(boidQuery, state.Dependency);
-            state.Dependency.Complete();
+            JobHandle collectHandle = collectJob.ScheduleParallel(boidQuery, state.Dependency);
+            //state.Dependency = collectJob.ScheduleParallel(boidQuery, state.Dependency);
+            //state.Dependency.Complete();
 
             // Step 2: Build Spatial Hash Map and place boids into cells
             float cellSize = boidSettings.SpatialCellSize;
@@ -61,7 +62,8 @@ namespace ECS.Systems
                 SpatialHashMap = spatialHashMap.AsParallelWriter(),
                 CellSize = cellSize
             };
-            state.Dependency = buildHashMapJob.Schedule(boidCount, 64, state.Dependency);
+            JobHandle buildHashMapHandle = buildHashMapJob.Schedule(boidCount, 64, collectHandle);
+            //state.Dependency = buildHashMapJob.Schedule(boidCount, 64, state.Dependency);
             //state.Dependency.Complete();
 
             // Step 3: Find Neighbors in the shared hashmap
@@ -75,7 +77,9 @@ namespace ECS.Systems
                 CellSize = cellSize,
                 BoidSettings = boidSettings
             };
-            state.Dependency = findNeighborsJob.Schedule(boidCount, batchSize, state.Dependency);
+            JobHandle findNeighborsHandle = findNeighborsJob.Schedule(boidCount, batchSize, buildHashMapHandle);
+
+            //state.Dependency = findNeighborsJob.Schedule(boidCount, batchSize, state.Dependency);
             //state.Dependency.Complete();
 
             // Step 4: Calculate Boid Behavior
@@ -86,34 +90,25 @@ namespace ECS.Systems
                 DeltaTime = deltaTime,
                 BoidSettings = boidSettings
             };
-            state.Dependency = calculateBehaviorJob.Schedule(boidCount, 64, state.Dependency);
+            JobHandle calculateBehaviorHandle = calculateBehaviorJob.Schedule(boidCount, batchSize, findNeighborsHandle);
+            //state.Dependency = calculateBehaviorJob.Schedule(boidCount, batchSize, state.Dependency);
             //state.Dependency.Complete();
 
-            // Step 6: Update Boids with new data
-            // var updateBoidsJob = new UpdateBoidsJob
-            // {
-            //     BoidDataArray = boidDataArray,
-            //     Entities = entities,
-            //     DeltaTime = deltaTime,
-            //     BoidSettings = boidSettings,
-            //     LocalTransformLookup = state.GetComponentLookup<LocalTransform>(false),
-            //     DirectionLookup = state.GetComponentLookup<DirectionComponent>(false),
-            //     SpeedLookup = state.GetComponentLookup<MoveSpeedComponent>(false)
-            // };
-            // state.Dependency = updateBoidsJob.Schedule(boidCount, 64, state.Dependency);
-            JobHandle updateBoidsJob = new UpdateBoidsJob
+            // Step 5: Update Boids with new data
+            var updateBoidsJob = new UpdateBoidsJob
             {
                 BoidDataArray = boidDataArray
-            }.ScheduleParallel(boidQuery, state.Dependency);
-            state.Dependency = updateBoidsJob;
-            updateBoidsJob.Complete();
-            state.Dependency.Complete();
+            };
+            JobHandle updateBoidsHandle = updateBoidsJob.ScheduleParallel(boidQuery, calculateBehaviorHandle);
 
-            // Dispose of native arrays
-            boidDataArray.Dispose(state.Dependency);
-            entities.Dispose(state.Dependency);
-            spatialHashMap.Dispose(state.Dependency);
-            neighborDataArray.Dispose(state.Dependency);
+            // Step 6: Ensure all jobs are completed before disposing resources
+            state.Dependency = updateBoidsHandle;
+
+            // Dispose of native arrays after all jobs are completed
+            boidDataArray.Dispose(updateBoidsHandle);
+            entities.Dispose(updateBoidsHandle);
+            spatialHashMap.Dispose(updateBoidsHandle);
+            neighborDataArray.Dispose(updateBoidsHandle);
         }
 
         [BurstCompile]
